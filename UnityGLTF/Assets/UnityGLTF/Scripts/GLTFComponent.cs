@@ -78,8 +78,8 @@ namespace UnityGLTF {
             if (normalizeSize && gameObject.transform.childCount > 0)
             {
                 Bounds bounds = BoundsHelper.GetGameObjectHierarchyBounds(this.gameObject, this.transform.position);
-                float minBound = Mathf.Min(bounds.size.x, bounds.size.y, bounds.size.z);
-                gameObject.transform.GetChild(0).localScale *= (boundsSize / minBound);
+                float maxBound = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+                gameObject.transform.GetChild(0).localScale *= (boundsSize / maxBound);
             }
 
             // Center object
