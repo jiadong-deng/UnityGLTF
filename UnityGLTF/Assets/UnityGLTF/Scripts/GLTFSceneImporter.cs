@@ -679,15 +679,12 @@ namespace UnityGLTF
 			};
 			_assetCache.AnimationCache[animationId].LoadedAnimationClip = clip;
 
-			foreach (var channel in animation.Channels)
+			foreach (AnimationChannel channel in animation.Channels)
 			{
 				var samplerCache = animationCache.Samplers[channel.Sampler.Id];
 				var node = nodes[channel.Target.Node.Id];
 				var relativePath = RelativePathFrom(node, root);
-				AnimationCurve curveX = new AnimationCurve(),
-					curveY = new AnimationCurve(),
-					curveZ = new AnimationCurve(),
-					curveW = new AnimationCurve();
+				AnimationCurve[] curves = channel.AsAnimationCurves();
 				NumericArray input = samplerCache.Input.AccessorContent,
 					output = samplerCache.Output.AccessorContent;
 
@@ -698,14 +695,14 @@ namespace UnityGLTF
 						{
 							var time = input.AsFloats[i];
 							Vector3 position = output.AsVec3s[i].ToUnityVector3Convert();
-							curveX.AddKey(time, position.x);
-							curveY.AddKey(time, position.y);
-							curveZ.AddKey(time, position.z);
+							curves[0].AddKey(time, position.x);
+							curves[1].AddKey(time, position.y);
+							curves[2].AddKey(time, position.z);
 						}
 
-						clip.SetCurve(relativePath, typeof(Transform), "localPosition.x", curveX);
-						clip.SetCurve(relativePath, typeof(Transform), "localPosition.y", curveY);
-						clip.SetCurve(relativePath, typeof(Transform), "localPosition.z", curveZ);
+						clip.SetCurve(relativePath, typeof(Transform), "localPosition.x", curves[0]);
+						clip.SetCurve(relativePath, typeof(Transform), "localPosition.y", curves[1]);
+						clip.SetCurve(relativePath, typeof(Transform), "localPosition.z", curves[2]);
 						break;
 
 					case GLTFAnimationChannelPath.rotation:
@@ -715,16 +712,16 @@ namespace UnityGLTF
 							var rotation = output.AsVec4s[i];
 
 							Quaternion rot = new GLTF.Math.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W).ToUnityQuaternionConvert();
-							curveX.AddKey(time, rot.x);
-							curveY.AddKey(time, rot.y);
-							curveZ.AddKey(time, rot.z);
-							curveW.AddKey(time, rot.w);
+							curves[0].AddKey(time, rot.x);
+							curves[1].AddKey(time, rot.y);
+							curves[2].AddKey(time, rot.z);
+							curves[3].AddKey(time, rot.w);
 						}
 
-						clip.SetCurve(relativePath, typeof(Transform), "localRotation.x", curveX);
-						clip.SetCurve(relativePath, typeof(Transform), "localRotation.y", curveY);
-						clip.SetCurve(relativePath, typeof(Transform), "localRotation.z", curveZ);
-						clip.SetCurve(relativePath, typeof(Transform), "localRotation.w", curveW);
+						clip.SetCurve(relativePath, typeof(Transform), "localRotation.x", curves[0]);
+						clip.SetCurve(relativePath, typeof(Transform), "localRotation.y", curves[1]);
+						clip.SetCurve(relativePath, typeof(Transform), "localRotation.z", curves[2]);
+						clip.SetCurve(relativePath, typeof(Transform), "localRotation.w", curves[3]);
 						break;
 
 					case GLTFAnimationChannelPath.scale:
@@ -732,25 +729,25 @@ namespace UnityGLTF
 						{
 							var time = input.AsFloats[i];
 							Vector3 scale = output.AsVec3s[i].ToUnityVector3Raw();
-							curveX.AddKey(time, scale.x);
-							curveY.AddKey(time, scale.y);
-							curveZ.AddKey(time, scale.z);
+							curves[0].AddKey(time, scale.x);
+							curves[1].AddKey(time, scale.y);
+							curves[2].AddKey(time, scale.z);
 						}
 
-						clip.SetCurve(relativePath, typeof(Transform), "localScale.x", curveX);
-						clip.SetCurve(relativePath, typeof(Transform), "localScale.y", curveY);
-						clip.SetCurve(relativePath, typeof(Transform), "localScale.z", curveZ);
+						clip.SetCurve(relativePath, typeof(Transform), "localScale.x", curves[0]);
+						clip.SetCurve(relativePath, typeof(Transform), "localScale.y", curves[1]);
+						clip.SetCurve(relativePath, typeof(Transform), "localScale.z", curves[2]);
 						break;
 
 					case GLTFAnimationChannelPath.weights:
-						var primitives = channel.Target.Node.Value.Mesh.Value.Primitives;
-						var targetCount = primitives[0].Targets.Count;
+						List<MeshPrimitive> primitives = channel.Target.Node.Value.Mesh.Value.Primitives;
+						int targetCount = primitives[0].Targets.Count;
 						for (int primitiveIndex = 0; primitiveIndex < primitives.Count; primitiveIndex++)
 						{
 							string primitiveObjPath = relativePath + "/Primitive" + primitiveIndex;
 							for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
 							{
-								//clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
+								clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
 							}
 						}
 						break;
