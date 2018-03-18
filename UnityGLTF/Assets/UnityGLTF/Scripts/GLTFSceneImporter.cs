@@ -516,25 +516,14 @@ namespace UnityGLTF
 						yield return ConstructBuffer(buffer, bufferId);
 					}
 
-					AttributeAccessor attributeAccessor = new AttributeAccessor
-					{
-						AccessorId = attributePair.Value,
-						Stream = _assetCache.BufferCache[bufferId].Stream,
-						Offset = _assetCache.BufferCache[bufferId].ChunkOffset
-					};
+					AttributeAccessor attributeAccessor = attributePair.Value.ToAttributeAccessor(_assetCache);
 
 					attributeAccessors[attributePair.Key] = attributeAccessor;
 				}
 
 				if (primitive.Indices != null)
 				{
-					int bufferId = primitive.Indices.Value.BufferView.Value.Buffer.Id;
-					AttributeAccessor indexBuilder = new AttributeAccessor()
-					{
-						AccessorId = primitive.Indices,
-						Stream = _assetCache.BufferCache[bufferId].Stream,
-						Offset = _assetCache.BufferCache[bufferId].ChunkOffset
-					};
+					AttributeAccessor indexBuilder = primitive.Indices.ToAttributeAccessor(_assetCache);
 
 					attributeAccessors[SemanticProperties.INDICES] = indexBuilder;
 				}
@@ -623,24 +612,14 @@ namespace UnityGLTF
 
 				// set up input accessors
 				BufferCacheData bufferCacheData = _assetCache.BufferCache[samplerDef.Input.Value.BufferView.Value.Buffer.Id];
-				AttributeAccessor attributeAccessor = new AttributeAccessor()
-				{
-					AccessorId = samplerDef.Input,
-					Stream = bufferCacheData.Stream,
-					Offset = bufferCacheData.ChunkOffset
-				};
+				AttributeAccessor attributeAccessor = samplerDef.Input.ToAttributeAccessor(_assetCache);
 
 				samplers[i].Input = attributeAccessor;
 				samplersByType["time"].Add(attributeAccessor);
 
 				// set up output accessors
 				bufferCacheData = _assetCache.BufferCache[samplerDef.Output.Value.BufferView.Value.Buffer.Id];
-				attributeAccessor = new AttributeAccessor()
-				{
-					AccessorId = samplerDef.Output,
-					Stream = bufferCacheData.Stream,
-					Offset = bufferCacheData.ChunkOffset
-				};
+				attributeAccessor = samplerDef.Output.ToAttributeAccessor(_assetCache);
 
 				samplers[i].Output = attributeAccessor;
 
@@ -747,8 +726,7 @@ namespace UnityGLTF
 							string primitiveObjPath = relativePath + "/Primitive" + primitiveIndex;
 							for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
 							{
-								// TODO: add support for blend shapes/morph targets
-								//clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
+								clip.SetCurve(primitiveObjPath, typeof(SkinnedMeshRenderer), "blendShape." + targetIndex, curves[targetIndex]);
 							}
 						}
 						break;
@@ -860,19 +838,37 @@ namespace UnityGLTF
 			return primitive.Targets != null;
 		}
 
+		protected virtual IEnumerator SetupBlendShapes(MeshPrimitive primitive, UnityEngine.Mesh mesh)
+		{
+			for (int blendShapeIndex = 0; blendShapeIndex < primitive.Targets.Count; blendShapeIndex++)
+			{
+				Dictionary<string, AccessorId> accessorIds = primitive.Targets[blendShapeIndex];
+				Dictionary<string, AttributeAccessor> attributeAccessors = new Dictionary<string, AttributeAccessor>();
+				foreach (var accessorId in accessorIds)
+				{
+					attributeAccessors[accessorId.Key] = accessorId.Value.ToAttributeAccessor(_assetCache);
+				}
+
+				GLTFHelpers.BuildMeshAttributes(ref attributeAccessors);
+				TransformAttributes(ref attributeAccessors);
+				mesh.AddBlendShapeFrame(
+					blendShapeIndex.ToString(),
+					1.0f,
+					attributeAccessors[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw(),
+					attributeAccessors[SemanticProperties.NORMAL].AccessorContent.AsNormals.ToUnityVector3Raw(),
+					attributeAccessors[SemanticProperties.TANGENT].AccessorContent.AsVec3s.ToUnityVector3Raw()
+					);
+			}
+
+			yield return null;
+		}
+
 		protected virtual IEnumerator SetupBones(Skin skin, MeshPrimitive primitive, SkinnedMeshRenderer renderer, GameObject primitiveObj, UnityEngine.Mesh curMesh)
 		{
 			var boneCount = skin.Joints.Count;
 			Transform[] bones = new Transform[boneCount];
 
-			int bufferId = skin.InverseBindMatrices.Value.BufferView.Value.Buffer.Id;
-			BufferCacheData bufferCacheData = _assetCache.BufferCache[bufferId];
-			AttributeAccessor attributeAccessor = new AttributeAccessor
-			{
-				AccessorId = skin.InverseBindMatrices,
-				Stream = _assetCache.BufferCache[bufferId].Stream,
-				Offset = _assetCache.BufferCache[bufferId].ChunkOffset
-			};
+			AttributeAccessor attributeAccessor = skin.InverseBindMatrices.ToAttributeAccessor(_assetCache);
 
 			GLTFHelpers.BuildBindPoseSamplers(ref attributeAccessor);
 
@@ -954,9 +950,10 @@ namespace UnityGLTF
 					var skinnedMeshRenderer = primitiveObj.AddComponent<SkinnedMeshRenderer>();
 					skinnedMeshRenderer.material = material;
 					skinnedMeshRenderer.quality = SkinQuality.Bone4;
-					// TODO: add support for blend shapes/morph targets
-					//if (HasBlendShapes(primitive))
-					//	SetupBlendShapes(primitive);
+					if (HasBlendShapes(primitive))
+					{
+						yield return SetupBlendShapes(primitive, curMesh);
+					}
 					if (HasBones(skin))
 					{
 						yield return SetupBones(skin, primitive, skinnedMeshRenderer, primitiveObj, curMesh);

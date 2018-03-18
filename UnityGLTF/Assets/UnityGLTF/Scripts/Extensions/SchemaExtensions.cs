@@ -1,6 +1,7 @@
 ﻿using GLTF;
 using GLTF.Schema;
 using UnityEngine;
+using UnityGLTF.Cache;
 
 namespace UnityGLTF.Extensions
 {
@@ -498,5 +499,20 @@ namespace UnityGLTF.Extensions
 			}
 			return outMatrixArr;
 		}
+
+		public static AttributeAccessor ToAttributeAccessor(this AccessorId accessorId, AssetCache assetCache)
+		{
+			int bufferId = accessorId.Value.BufferView.Value.Buffer.Id;
+			BufferCacheData bufferCacheData = assetCache.BufferCache[bufferId];
+			AttributeAccessor attributeAccessor = new AttributeAccessor
+			{
+				AccessorId = accessorId,
+				Stream = assetCache.BufferCache[bufferId].Stream,
+				Offset = assetCache.BufferCache[bufferId].ChunkOffset
+			};
+
+			return attributeAccessor;
+		}
+	}
 	}
 }
