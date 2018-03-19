@@ -140,6 +140,17 @@ namespace UnityGLTF.Extensions
 			return new Quaternion(newAxis.x, newAxis.y, newAxis.z, gltfQuat.W);
 		}
 
+		public static Quaternion[] ToUnityQuaternionConvert(this GLTF.Math.Vector4[] inVecArr)
+		{
+			Quaternion[] outQuatArr = new Quaternion[inVecArr.Length];
+			for (int i = 0; i < inVecArr.Length; ++i)
+			{
+				GLTF.Math.Vector4 rotation = inVecArr[i];
+				outQuatArr[i] = new GLTF.Math.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W).ToUnityQuaternionConvert();
+			}
+			return outQuatArr;
+		}
+
 		/// <summary>
 		/// Convert unity quaternion to a gltf quaternion
 		/// </summary>
@@ -270,6 +281,16 @@ namespace UnityGLTF.Extensions
 			for (int i = 0; i < inVecArr.Length; ++i)
 			{
 				outVecArr[i] = inVecArr[i].ToUnityVector3Raw();
+			}
+			return outVecArr;
+		}
+
+		public static Vector3[] ToUnityVector3Convert(this GLTF.Math.Vector3[] inVecArr)
+		{
+			Vector3[] outVecArr = new Vector3[inVecArr.Length];
+			for (int i = 0; i < inVecArr.Length; ++i)
+			{
+				outVecArr[i] = inVecArr[i].ToUnityVector3Convert();
 			}
 			return outVecArr;
 		}
@@ -513,6 +534,5 @@ namespace UnityGLTF.Extensions
 
 			return attributeAccessor;
 		}
-	}
 	}
 }

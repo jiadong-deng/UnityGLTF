@@ -588,8 +588,8 @@ namespace UnityGLTF
 		protected virtual void BuildAnimationSamplers(GLTF.Schema.Animation animation, int animationId)
 		{
 			// look up expected data types
-			var typeMap = new Dictionary<int, string>();
-			foreach (var channel in animation.Channels)
+			Dictionary<int, string> typeMap = new Dictionary<int, string>();
+			foreach (AnimationChannel channel in animation.Channels)
 			{
 				typeMap[channel.Sampler.Id] = channel.Target.Path.ToString();
 			}
@@ -608,7 +608,7 @@ namespace UnityGLTF
 					continue;
 				}
 
-				var samplerDef = animation.Samplers[i];
+				AnimationSampler samplerDef = animation.Samplers[i];
 
 				// set up input accessors
 				BufferCacheData bufferCacheData = _assetCache.BufferCache[samplerDef.Input.Value.BufferView.Value.Buffer.Id];
@@ -660,10 +660,10 @@ namespace UnityGLTF
 
 			foreach (AnimationChannel channel in animation.Channels)
 			{
-				var samplerCache = animationCache.Samplers[channel.Sampler.Id];
-				var node = nodes[channel.Target.Node.Id];
-				var relativePath = RelativePathFrom(node, root);
-				AnimationCurve[] curves = channel.AsAnimationCurves();
+				AnimationSamplerCacheData samplerCache = animationCache.Samplers[channel.Sampler.Id];
+				Transform node = nodes[channel.Target.Node.Id];
+				string relativePath = RelativePathFrom(node, root);
+				AnimationCurve[] curves = channel.AsAnimationCurves(samplerCache);
 				NumericArray input = samplerCache.Input.AccessorContent,
 					output = samplerCache.Output.AccessorContent;
 
@@ -851,13 +851,21 @@ namespace UnityGLTF
 
 				GLTFHelpers.BuildMeshAttributes(ref attributeAccessors);
 				TransformAttributes(ref attributeAccessors);
-				mesh.AddBlendShapeFrame(
-					blendShapeIndex.ToString(),
-					1.0f,
-					attributeAccessors[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw(),
-					attributeAccessors[SemanticProperties.NORMAL].AccessorContent.AsNormals.ToUnityVector3Raw(),
-					attributeAccessors[SemanticProperties.TANGENT].AccessorContent.AsVec3s.ToUnityVector3Raw()
-					);
+
+				Vector3[] verts = null, normals = null, tangents = null;
+
+				Debug.Assert(attributeAccessors[SemanticProperties.POSITION] != null, "Positions array cannot be null for a blend shape");
+				verts = attributeAccessors[SemanticProperties.POSITION].AccessorContent.AsVertices.ToUnityVector3Raw();
+				if (attributeAccessors.ContainsKey("NORMAL"))
+				{
+					normals = attributeAccessors[SemanticProperties.NORMAL].AccessorContent.AsNormals.ToUnityVector3Raw();
+				}
+				if (attributeAccessors.ContainsKey("TANGENT"))
+				{
+					tangents = attributeAccessors[SemanticProperties.TANGENT].AccessorContent.AsVec3s.ToUnityVector3Raw();
+				}
+
+				mesh.AddBlendShapeFrame(blendShapeIndex.ToString(), 1.0f, verts, normals, tangents);
 			}
 
 			yield return null;
